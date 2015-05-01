@@ -377,5 +377,28 @@ Function Add-PSEnvironmentPathLocation
         [Environment]::SetEnvironmentVariable( 'PSModulePath', "$CurrentPSModulePath;$Path", [System.EnvironmentVariableTarget]::Machine )
     }
 }
+<#
+    .Synopsis
+        Looks for the tag workflow in a file and returns the next string
+    
+    .Parameter FilePath
+        The path to the file to search
+#>
+Function Get-WorkflowNameFromFile
+{
+    Param([Parameter(Mandatory=$true)][string] $FilePath)
 
+    $DeclaredCommands = Find-DeclaredCommand -Path $FilePath
+    Foreach($Command in $DeclaredCommands.Keys)
+    {
+        if($DeclaredCommands.$Command.Type -eq 'Workflow') 
+        { 
+            return $Command -as [string]
+        }
+    }
+    $FileContent = Get-Content $FilePath
+    Throw-Exception -Type 'WorkflowNameNotFound' `
+                        -Message 'Could not find the workflow tag and corresponding workflow name' `
+                        -Property @{ 'FileContent' = "$FileContent" }
+}
 Export-ModuleMember -Function * -Verbose:$False -Debug:$False
