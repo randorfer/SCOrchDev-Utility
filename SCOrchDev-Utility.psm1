@@ -371,7 +371,7 @@ Function Add-PSEnvironmentPathLocation
     )
     
     $CurrentPSModulePath = [System.Environment]::GetEnvironmentVariable('PSModulePath')
-    if($CurrentPSModulePath.ToLower().Contains($Path.ToLower()))
+    if(-not($CurrentPSModulePath.ToLower().Contains($Path.ToLower())))
     {
         Write-Verbose -Message "The path [$Path] was not in the environment path [$CurrentPSModulePath]. Adding."
         [Environment]::SetEnvironmentVariable( 'PSModulePath', "$CurrentPSModulePath;$Path", [System.EnvironmentVariableTarget]::Machine )
