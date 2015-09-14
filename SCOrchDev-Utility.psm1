@@ -401,4 +401,60 @@ Function Get-WorkflowNameFromFile
                         -Message 'Could not find the workflow tag and corresponding workflow name' `
                         -Property @{ 'FileContent' = "$FileContent" }
 }
+
+<#
+.SYNOPSIS
+    Given a hashtable, filters entries based on their value. Returns
+    a new hashtable whose elements are only those whose value cause
+    $FilterScript to return $True.
+
+.PARAMETER Hashtable
+    The hashtable to filter.
+
+.PARAMETER FilterScript
+    The filter script to apply to each element of the hashtable.
+#>
+Function Select-Hashtable
+{
+    param(
+        [Parameter(Mandatory=$True)]  [Hashtable] $Hashtable,
+        [Parameter(Mandatory=$False)] [ScriptBlock] $FilterScript = { $_ -as [Bool] }
+    )
+
+    $FilteredHashtable = @{}
+    foreach($Element in $Hashtable.GetEnumerator())
+    {
+        $_ = $Element.Value
+        if($FilterScript.InvokeWithContext($null, (Get-Variable -Name '_'), $null))
+        {
+            $FilteredHashtable[$Element.Name] = $Element.Value
+        }
+    }
+    return $FilteredHashtable
+}
+<#
+.Synopsis
+    Writes a finished verbose message
+#>
+function Write-CompletedMessage
+{
+    Param(
+        [Parameter(Mandatory=$True)]
+        [datetime]
+        $StartTime,
+
+        [Parameter(Mandatory=$True)]
+        [String]
+        $Name,
+
+        [Parameter(Mandatory=$False)]
+        [ValidateSet('Debug', 'Error', 'Verbose', 'Warning')]
+        [String]
+        $Stream = 'Verbose'
+    )
+    
+    $LogCommand = (Get-Command -Name "Write-$Stream")
+    & $LogCommand -Message "Completed [$Name] in [$(((Get-Date) - $StartTime).TotalSeconds)] Seconds" `
+                  -WarningAction Continue
+}
 Export-ModuleMember -Function * -Verbose:$False -Debug:$False
