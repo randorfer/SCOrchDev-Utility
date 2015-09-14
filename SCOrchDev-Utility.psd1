@@ -12,7 +12,7 @@
 RootModule = '.\SCOrchDev-Utility.psm1'
 
 # Version number of this module.
-ModuleVersion = '1.0.3'
+ModuleVersion = '2.0.0.0'
 
 # ID used to uniquely identify this module
 GUID = '41d1dfce-c2f0-42e5-b4b0-42eac1116fcd'
@@ -27,7 +27,7 @@ CompanyName = 'SCOrchDev'
 Copyright = '(c) SCOrchDev. All rights reserved.'
 
 # Description of the functionality provided by this module
-# Description = ''
+Description = 'A grouping of utility functions from SCOrchDev'
 
 # Minimum version of the Windows PowerShell engine required by this module
 PowerShellVersion = '4.0'
@@ -81,7 +81,7 @@ AliasesToExport = '*'
 ModuleList = @('SCOrchDev-Utility')
 
 # List of all files packaged with this module
-FileList = @('SCOrchDev-Utility.psd1', 'SCOrchDev-Utility.psm1')
+FileList = @('SCOrchDev-Utility.psd1', 'SCOrchDev-Utility.psm1', 'SCOrchDev-Utility.tests.ps1', 'LICENSE', 'README.md')
 
 # Private data to pass to the module specified in RootModule/ModuleToProcess
 # PrivateData = ''
