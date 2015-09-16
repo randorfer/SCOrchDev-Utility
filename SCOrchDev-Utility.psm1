@@ -1,4 +1,5 @@
-﻿<#
+﻿#requires -Version 2 -Modules SCOrchDev-Exception
+<#
 .SYNOPSIS
     Converts an object into a text-based represenation that can easily be written to logs.
 
@@ -16,6 +17,7 @@
 Function Format-ObjectDump
 {
     [CmdletBinding()]
+    [OutputType([string])]
     Param(
         [Parameter(Position = 0, Mandatory = $True,ValueFromPipeline = $True)]
         [Object]$InputObject,
@@ -291,8 +293,8 @@ Function ConvertFrom-PSCustomObject
     
     foreach($KeyName in ($InputObject | Get-Member -MemberType $MemberType).Name) 
     {
-        $KeyName = Invoke-Command $KeyFilterScript -ArgumentList $KeyName
-        if(-not (Test-IsNullOrEmpty $KeyName))
+        $KeyName = Invoke-Command -ScriptBlock $KeyFilterScript -ArgumentList $KeyName
+        if(-not (Test-IsNullOrEmpty -String $KeyName))
         {
             if($outputObj.ContainsKey($KeyName))
             {
@@ -340,8 +342,8 @@ Function ConvertTo-Hashtable
     foreach($Object in $InputObject)
     {
         $Key = $Object."$KeyName"
-        $Key = Invoke-Command $KeyFilterScript -ArgumentList $Key
-        if(-not (Test-IsNullOrEmpty $Key))
+        $Key = Invoke-Command -ScriptBlock $KeyFilterScript -ArgumentList $Key
+        if(-not (Test-IsNullOrEmpty -String $Key))
         {
             if($outputObj.ContainsKey($Key))
             {
@@ -396,7 +398,7 @@ Function Get-WorkflowNameFromFile
             return $Command -as [string]
         }
     }
-    $FileContent = Get-Content $FilePath
+    $FileContent = Get-Content -Path $FilePath
     Throw-Exception -Type 'WorkflowNameNotFound' `
                         -Message 'Could not find the workflow tag and corresponding workflow name' `
                         -Property @{ 'FileContent' = "$FileContent" }
