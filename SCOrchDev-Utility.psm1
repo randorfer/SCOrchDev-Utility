@@ -1,4 +1,4 @@
-﻿#requires -Version 2 -Modules SCOrchDev-Exception
+﻿#requires -Version 2
 <#
 .SYNOPSIS
     Converts an object into a text-based represenation that can easily be written to logs.
@@ -398,10 +398,7 @@ Function Get-WorkflowNameFromFile
             return $Command -as [string]
         }
     }
-    $FileContent = Get-Content -Path $FilePath
-    Throw-Exception -Type 'WorkflowNameNotFound' `
-                        -Message 'Could not find the workflow tag and corresponding workflow name' `
-                        -Property @{ 'FileContent' = "$FileContent" }
+    Throw 'Could not find the workflow tag and corresponding workflow name'
 }
 
 <#
