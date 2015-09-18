@@ -368,15 +368,28 @@ Function ConvertTo-Hashtable
 Function Add-PSEnvironmentPathLocation
 {
     Param(
-        [Parameter(Mandatory = $True, ValueFromPipeline = $True)]
-        $Path
+        [Parameter(
+            Mandatory = $True,
+            ValueFromPipeline = $True,
+            Position = 0
+
+        )]
+        $Path,
+
+        [Parameter(
+            Mandatory = $False,
+            ValueFromPipeline = $True,
+            Position = 1
+        )]
+        [System.EnvironmentVariableTarget]
+        $Location = [System.EnvironmentVariableTarget]::User
     )
     
-    $CurrentPSModulePath = [System.Environment]::GetEnvironmentVariable('PSModulePath')
+    $CurrentPSModulePath = [System.Environment]::GetEnvironmentVariable('PSModulePath', $Location)
     if(-not($CurrentPSModulePath.ToLower().Contains($Path.ToLower())))
     {
         Write-Verbose -Message "The path [$Path] was not in the environment path [$CurrentPSModulePath]. Adding."
-        [Environment]::SetEnvironmentVariable( 'PSModulePath', "$CurrentPSModulePath;$Path", [System.EnvironmentVariableTarget]::Machine )
+        [Environment]::SetEnvironmentVariable( 'PSModulePath', "$CurrentPSModulePath;$Path", $Location )
     }
 }
 <#
