@@ -73,6 +73,7 @@ Function ConvertTo-Boolean
     [OutputType([string])]
     Param(
         [Parameter(Mandatory = $True, ValueFromPipeline = $True)]
+        [AllowNull()]
         [string]
         $InputString
     )
@@ -276,6 +277,7 @@ Function ConvertFrom-PSCustomObject
     [OutputType([hashtable])] 
     Param(
         [Parameter(Mandatory = $True, ValueFromPipeline = $True)] 
+        [AllowNull()]
         $InputObject,
 
         [Parameter(Mandatory = $False)]
@@ -328,6 +330,7 @@ Function ConvertTo-Hashtable
     [OutputType([hashtable])]
     Param(
         [Parameter(Mandatory = $True, ValueFromPipeline = $True)]
+        [AllowNull()]
         $InputObject,
 
         [Parameter(Mandatory = $True)][string]
