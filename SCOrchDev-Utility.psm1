@@ -465,11 +465,93 @@ function Write-CompletedMessage
         [Parameter(Mandatory=$False)]
         [ValidateSet('Debug', 'Error', 'Verbose', 'Warning')]
         [String]
+        $Stream = 'Verbose',
+
+        [Parameter(Mandatory=$False)]
+        [switch]
+        $PassThru
+    )
+    
+    if($Name -notmatch '^\[.*]$')
+    {
+        $Name = "[$Name]"
+    } 
+    $LogCommand = (Get-Command -Name "Write-$Stream")
+    $EndTime = Get-Date
+    $ElapsedTime = ($EndTime - $StartTime).TotalSeconds
+    $Message = "Completed $Name in [$($ElapsedTime)] Seconds"
+    & $LogCommand -Message $Message `
+                  -WarningAction Continue
+
+    if($PassThru.IsPresent)
+    {
+        Write-Output -InputObject @{
+            'Name' = $Name
+            'StartTime' = $StartTime
+            'EndTime' = $EndTime
+            'ElapsedTime' = $ElapsedTime
+            'Message' = $Message
+        }
+    }
+}
+
+<#
+.Synopsis
+    Writes the standard starting message
+.Parameter String
+    An additional string to write out
+.Parameter Stream
+    The stream to write the starting message to
+#>
+function Write-StartingMessage
+{
+    Param(
+        [Parameter(Mandatory=$False)]
+        [String]
+        $CommandName = '',
+
+        [Parameter(Mandatory=$False)]
+        [String]
+        $String = '',
+
+        [Parameter(Mandatory=$False)]
+        [ValidateSet('Debug', 'Error', 'Verbose', 'Warning')]
+        [String]
         $Stream = 'Verbose'
     )
     
+    $ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop
+    $_CommandName = Select-FirstValid $Commandname, ((Get-PSCallStack)[1].Command -as [string])
+    $Name = [string]::Empty
+    if($_CommandName -as [bool])
+    {
+        if($String -as [bool])
+        {
+            $Name = "[$_CommandName] [$String]"
+        }
+        else
+        {
+            $Name = "[$_CommandName]"
+        }
+    }
+    elseif($String -as [bool])
+    {
+        $Name = "[$String]"
+    }
+    else
+    {
+        $ExceptionMessage = 'Could not determine the current name. 
+                             Please pass the -string parameter with 
+                             $WorkflowCommandName if running from workflow' -replace "`r`n", ' ' -replace '  ', ''
+        Throw-Exception -Type 'CannotDetermineName' `
+                        -Message $ExceptionMessage
+    }
+
     $LogCommand = (Get-Command -Name "Write-$Stream")
-    & $LogCommand -Message "Completed [$Name] in [$(((Get-Date) - $StartTime).TotalSeconds)] Seconds" `
-                  -WarningAction Continue
+    & $LogCommand -Message "Starting $Name" `
+                  -WarningAction Continue `
+                  -ErrorAction Continue
+    
+    Return @{ 'Name' = $Name ; 'StartTime' = (Get-Date) ; 'Stream' = $Stream}
 }
 Export-ModuleMember -Function * -Verbose:$False -Debug:$False
