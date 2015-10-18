@@ -414,7 +414,58 @@ Function Get-WorkflowNameFromFile
             return $Command -as [string]
         }
     }
-    Throw 'Could not find the workflow tag and corresponding workflow name'
+
+    Throw-Exception -Type 'NoWorkflowDefined' -Message 'No workflow defined in file'
+}
+
+<#
+    .Synopsis
+        Tests to see if a file has a PS workflow defined inside of it
+    
+    .Parameter FilePath
+        The path to the file to search
+#>
+Function Test-FileIsWorkflow
+{
+    Param([Parameter(Mandatory=$true)][string] $FilePath)
+
+    try { Get-WorkflowNameFromFile -FilePath $FilePath }
+    catch
+    {
+        $Exception = $_
+        $ExceptionInformation = Get-ExceptionInfo -Exception $Exception
+        Switch ($ExceptionInformation.FullyQualifiedErrorId)
+        {
+            'NoWorkflowDefined' { return $false }
+        }
+    }
+    return $true
+}
+
+<#
+    .Synopsis
+        Creates a script name based on the filename
+    
+    .Parameter FilePath
+        The path to the file
+#>
+Function Get-ScriptNameFromFileName
+{
+    Param([Parameter(Mandatory=$true)][string] $FilePath)
+    $CompletedParams = Write-StartingMessage -Stream Debug
+
+    $MatchRegex = '([^\.]+)' -as [string]
+    $FileInfo = Get-Item -Path $FilePath
+    if($FileInfo.Name -match '([^\.]+)')
+    {
+        Return $Matches[1]
+    }
+    else
+    {
+        Throw-Exception -Type 'CouldNotDetermineName' -Message 'Could not determine the script name'
+    }
+
+    Write-CompletedMessage @CompletedParams
 }
 
 <#
