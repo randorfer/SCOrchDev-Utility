@@ -514,6 +514,10 @@ function Write-CompletedMessage
         $Name,
 
         [Parameter(Mandatory=$False)]
+        [String]
+        $Status = $Null,
+
+        [Parameter(Mandatory=$False)]
         [ValidateSet('Debug', 'Error', 'Verbose', 'Warning')]
         [String]
         $Stream = 'Verbose',
@@ -526,6 +530,10 @@ function Write-CompletedMessage
     if($Name -notmatch '^\[.*]$')
     {
         $Name = "[$Name]"
+    }
+    if($Status -as [bool])
+    {
+        $Name = "$Name [$Status]"
     } 
     $LogCommand = (Get-Command -Name "Write-$Stream")
     $EndTime = Get-Date
