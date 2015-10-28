@@ -625,7 +625,7 @@ Function Start-SleepUntil
     $SleepSeconds = ($DateTime - (Get-Date)).TotalSeconds
     if($SleepSeconds -gt 0)
     {
-        Write-Verbose -Message "Sleeping for [$SleepSeconds]"
+        Write-Verbose -Message "Sleeping for [$SleepSeconds] seconds"
         Start-Sleep -Seconds $SleepSeconds
     }
     Write-CompletedMessage @CompletedParams
