@@ -613,4 +613,21 @@ function Write-StartingMessage
     
     Return @{ 'Name' = $Name ; 'StartTime' = (Get-Date) ; 'Stream' = $Stream}
 }
+Function Start-SleepUntil
+{
+    Param(
+        [Parameter(Mandatory=$False)]
+        [DateTime]
+        $DateTime = (Get-Date).AddSeconds(1)
+    )
+    $ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop
+    $CompletedParams = Write-StartingMessage -String "DateTime [$DateTime]"
+    $SleepSeconds = ($DateTime - (Get-Date)).TotalSeconds
+    if($SleepSeconds -gt 0)
+    {
+        Write-Verbose -Message "Sleeping for [$SleepSeconds]"
+        Start-Sleep -Seconds $SleepSeconds
+    }
+    Write-CompletedMessage @CompletedParams
+}
 Export-ModuleMember -Function * -Verbose:$False -Debug:$False
