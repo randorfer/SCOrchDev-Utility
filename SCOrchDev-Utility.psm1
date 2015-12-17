@@ -456,7 +456,7 @@ Function Get-ScriptNameFromFileName
 
     $MatchRegex = '([^\.]+)' -as [string]
     $FileInfo = Get-Item -Path $FilePath
-    if($FileInfo.Name -match '([^\.]+)')
+    if($FileInfo.Name -match $MatchRegex)
     {
         Return $Matches[1]
     }
