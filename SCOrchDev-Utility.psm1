@@ -444,7 +444,7 @@ Function Test-FileIsWorkflow
 
 <#
     .Synopsis
-        Creates a script name based on the filename
+        Gets a script name based on the filename
     
     .Parameter FilePath
         The path to the file
@@ -466,6 +466,33 @@ Function Get-ScriptNameFromFileName
     }
 
     Write-CompletedMessage @CompletedParams
+}
+
+<#
+    .Synopsis
+        Gets a script name based on the filename
+    
+    .Parameter FilePath
+        The path to the file
+#>
+Function Get-DSCConfigurationName
+{
+    Param([Parameter(Mandatory=$true)][string] $FilePath)
+    $CompletedParams = Write-StartingMessage -Stream Debug
+
+    $MatchRegex = 'Configuration ([^{\s]*)[\s]*{*' -as [string]
+    $FileContent = (Get-Content $FilePath) -as [string]
+    if($FileContent -Match $MatchRegex)
+    {
+        $Name = $Matches[1]
+    }
+    else
+    {
+        Throw-Exception -Type 'CouldNotDetermineName' -Message 'Could not determine the configuration name'
+    }
+
+    Write-CompletedMessage @CompletedParams -Status $Name
+    Return $Name
 }
 
 <#
