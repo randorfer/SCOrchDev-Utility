@@ -12,7 +12,7 @@
     The object to convert to a textual representation.
 
 .PARAMETER Property
-    An optional list of property names that should be displayed in the output. 
+    An optional list of property names that should be displayed in the output!
 #>
 Function Format-ObjectDump
 {
