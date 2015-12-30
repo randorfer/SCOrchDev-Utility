@@ -388,11 +388,19 @@ Function Add-PSEnvironmentPathLocation
         $Location = [System.EnvironmentVariableTarget]::User
     )
     
-    $CurrentPSModulePath = [System.Environment]::GetEnvironmentVariable('PSModulePath', $Location)
+    $CurrentPSModulePath = [System.Environment]::GetEnvironmentVariable('PSModulePath', $Location) -as [string]
     if(-not($CurrentPSModulePath.ToLower().Contains($Path.ToLower())))
     {
         Write-Verbose -Message "The path [$Path] was not in the environment path [$CurrentPSModulePath]. Adding."
-        [Environment]::SetEnvironmentVariable( 'PSModulePath', "$CurrentPSModulePath;$Path", $Location )
+        if($CurrentPSModulePath -as [bool])
+        {
+            [Environment]::SetEnvironmentVariable( 'PSModulePath', "$CurrentPSModulePath;$Path", $Location )
+        }
+        else
+        {
+            [Environment]::SetEnvironmentVariable( 'PSModulePath', "$Path", $Location )
+        }
+
     }
 }
 <#
@@ -480,7 +488,7 @@ Function Get-DSCConfigurationName
     Param([Parameter(Mandatory=$true)][string] $FilePath)
     $CompletedParams = Write-StartingMessage -Stream Debug
 
-    $MatchRegex = 'Configuration ([^{\s]*)[\s]*{*' -as [string]
+    $MatchRegex = 'Configuration[\s]+([^{\s]+)[\s]*' -as [string]
     $FileContent = (Get-Content $FilePath) -as [string]
     if($FileContent -Match $MatchRegex)
     {
@@ -491,6 +499,32 @@ Function Get-DSCConfigurationName
         Throw-Exception -Type 'CouldNotDetermineName' -Message 'Could not determine the configuration name'
     }
 
+    Write-CompletedMessage @CompletedParams -Status $Name
+    Return $Name
+}
+
+<#
+    .Synopsis
+        Gets a script name based on the filename
+    
+    .Parameter FilePath
+        The path to the file
+#>
+Function Get-DSCNodeName
+{
+    Param([Parameter(Mandatory=$true)][string] $FilePath)
+    $CompletedParams = Write-StartingMessage -Stream Debug
+
+    $MatchRegex = 'Node[\s]+([^{\s]+)[\s]*' -as [string]
+    $FileContent = (Get-Content $FilePath) -as [string]
+    if($FileContent -Match $MatchRegex)
+    {
+        $Name = $Matches[1]
+    }
+    else
+    {
+        $Name = ''
+    }
     Write-CompletedMessage @CompletedParams -Status $Name
     Return $Name
 }
