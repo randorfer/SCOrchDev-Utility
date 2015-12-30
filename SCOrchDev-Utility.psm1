@@ -515,18 +515,13 @@ Function Get-DSCNodeName
     Param([Parameter(Mandatory=$true)][string] $FilePath)
     $CompletedParams = Write-StartingMessage -Stream Debug
 
-    $MatchRegex = 'Node[\s]+([^{\s]+)[\s]*' -as [string]
+    $MatchRegex = 'Node[\s]+([^{\s]+)[\s]*' -as [regex]
     $FileContent = (Get-Content $FilePath) -as [string]
-    if($FileContent -Match $MatchRegex)
-    {
-        $Name = $Matches[1]
-    }
-    else
-    {
-        $Name = ''
-    }
-    Write-CompletedMessage @CompletedParams -Status $Name
-    Return $Name
+    $Match = $MatchRegex.Matches($FileContent)
+    $ReturnObj = $Match | ForEach-Object { $_.Groups[1].Value }
+    
+    Write-CompletedMessage @CompletedParams -Status ($ReturnObj | ConvertTo-Json)
+    Return $ReturnObj
 }
 
 <#
