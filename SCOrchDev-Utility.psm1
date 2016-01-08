@@ -636,6 +636,12 @@ function Write-StartingMessage
     )
     
     $ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop
+    
+    $TempPreference = $VerbosePreference
+    $VerbosePreference = "SilentlyContinue"
+    $null = Get-Module –ListAvailable
+    $VerbosePreference = $TempPreference
+
     $_CommandName = Select-FirstValid $Commandname, ((Get-PSCallStack)[1].Command -as [string])
     $Name = [string]::Empty
     if($_CommandName -as [bool])
@@ -685,5 +691,35 @@ Function Start-SleepUntil
         Start-Sleep -Seconds $SleepSeconds
     }
     Write-CompletedMessage @CompletedParams
+}
+
+<#
+    .Synopsis
+        Return a random string including characters from the 
+        set input parameter and of a defined length
+#>
+Function New-RandomString
+{
+    [OutputType([string])]
+    Param(
+        [Parameter(Mandatory = $False)]
+        [char[]]
+        $Set = ('abcdefghijklmnopqrstuvwxyz0123456789' -as [char[]]),
+
+        [Parameter(Mandatory = $False)]
+        [int]
+        $Length = 10
+    )
+    $ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop
+    $CompletedParams = Write-StartingMessage
+    
+    $Result = [string]::Empty
+    for ($x = 0; $x -lt $Length; $x++) {
+        $Result += $set | Get-Random
+    }
+
+    $Result = $Result -as [string]
+    Write-CompletedMessage @CompletedParams -Status $Result
+    return $Result
 }
 Export-ModuleMember -Function * -Verbose:$False -Debug:$False
