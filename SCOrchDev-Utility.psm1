@@ -636,11 +636,6 @@ function Write-StartingMessage
     )
     
     $ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop
-    
-    $TempPreference = $VerbosePreference
-    $VerbosePreference = "SilentlyContinue"
-    $null = Get-Module –ListAvailable
-    $VerbosePreference = $TempPreference
 
     $_CommandName = Select-FirstValid $Commandname, ((Get-PSCallStack)[1].Command -as [string])
     $Name = [string]::Empty
