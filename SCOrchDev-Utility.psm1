@@ -689,32 +689,162 @@ Function Start-SleepUntil
 }
 
 <#
-    .Synopsis
-        Return a random string including characters from the 
-        set input parameter and of a defined length
+.Synopsis
+    Generates one or more complex strings designed to fulfill the requirements for Active Directory
+
+.DESCRIPTION
+    Generates one or more complex strings designed to fulfill the requirements for Active Directory
+
+.EXAMPLE
+    New-RandomString
+    C&3SX6Kn
+
+    Will generate one password with a length between 8  and 12 chars.
+.EXAMPLE
+    New-RandomString -MinLength 8 -MaxLength 12 -Count 4
+    7d&5cnaB
+    !Bh776T"Fw
+    9"C"RxKcY
+    %mtM7#9LQ9h
+
+    Will generate four passwords, each with a length of between 8 and 12 chars.
+.EXAMPLE
+    New-RandomString -InputString abc, ABC, 123 -Length 4
+    3ABa
+
+    Generates a password with a length of 4 containing atleast one char from each InputString
+.EXAMPLE
+    New-RandomString -InputString abc, ABC, 123 -Length 4 -FirstChar abcdefghijkmnpqrstuvwxyzABCEFGHJKLMNPQRSTUVWXYZ
+    3ABa
+
+    Generates a password with a length of 4 containing atleast one char from each InputString that will start with a letter from 
+    the string specified with the parameter FirstChar
+.OUTPUTS
+    [String]
+.FUNCTIONALITY
+    Generates random strings
 #>
 Function New-RandomString
 {
-    [OutputType([string])]
-    Param(
-        [Parameter(Mandatory = $False)]
-        [char[]]
-        $Set = ('abcdefghijklmnopqrstuvwxyz0123456789' -as [char[]]),
-
-        [Parameter(Mandatory = $False)]
+    [CmdletBinding(DefaultParameterSetName='FixedLength',ConfirmImpact='None')]
+    [OutputType([String])]
+    Param
+    (
+        # Specifies minimum length
+        [Parameter(
+            Mandatory=$false,
+            ParameterSetName='RandomLength'
+        )]
+        [ValidateScript({$_ -gt 0})]
+        [Alias('Min')] 
         [int]
-        $Length = 10
-    )
-    $ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop
-    $CompletedParams = Write-StartingMessage
-    
-    $Result = [string]::Empty
-    for ($x = 0; $x -lt $Length; $x++) {
-        $Result += $set | Get-Random
-    }
+        $MinLength = 8,
+        
+        # Specifies maximum length
+        [Parameter(
+            Mandatory=$false,
+            ParameterSetName='RandomLength'
+        )]
+        [ValidateScript({
+            if($_ -ge $MinPasswordLength) { $true }
+            else { Throw 'Max value cannot be lesser than min value.' }
+        })]
+        [Alias('Max')]
+        [int]
+        $MaxLength = 12,
 
-    $Result = $Result -as [string]
-    Write-CompletedMessage @CompletedParams -Status $Result
-    return $Result
+        # Specifies a fixed length
+        [Parameter(
+            Mandatory=$false,
+            ParameterSetName='FixedLength'
+        )]
+        [ValidateRange(1,2147483647)]
+        [int]
+        $Length = 8,
+        
+        # Specifies an array of strings containing charactergroups from which the password will be generated.
+        # At least one char from each group (string) will be used.
+        [String[]]
+        $InputString = @(
+            'abcdefghijkmnpqrstuvwxyz',
+            'ABCEFGHJKLMNPQRSTUVWXYZ',
+            '23456789',
+            '!"#%&'
+        ),
+
+        # Specifies a string containing a character group from which the first character in the password will be generated.
+        # Useful for systems which requires first char in password to be alphabetic.
+        [String]
+        $FirstChar,
+        
+        # Specifies number of passwords to generate.
+        [ValidateRange(1,2147483647)]
+        [int]
+        $Count = 1
+    )
+    Begin 
+    {
+        Function Get-Seed
+        {
+            # Generate a seed for randomization
+            $RandomBytes = New-Object -TypeName 'System.Byte[]' 4
+            $Random = New-Object -TypeName 'System.Security.Cryptography.RNGCryptoServiceProvider'
+            $Random.GetBytes($RandomBytes)
+            [BitConverter]::ToUInt32($RandomBytes, 0)
+        }
+    }
+    Process
+    {
+        $CompletedParams = Write-StartingMessage
+        For($iteration = 1;$iteration -le $Count; $iteration++)
+        {
+            $Password = @{}
+            # Create char arrays containing groups of possible chars
+            [char[][]]$CharGroups = $InputString
+
+            # Create char array containing all chars
+            $AllChars = $CharGroups | ForEach-Object {[Char[]]$_}
+
+            # Set password length
+            if($PSCmdlet.ParameterSetName -eq 'RandomLength')
+            {
+                if($MinLength -eq $MaxLength) {
+                    # If password length is set, use set length
+                    $Length = $MinLength
+                }
+                else {
+                    # Otherwise randomize password length
+                    $Length = ((Get-Seed) % ($MaxLength + 1 - $MinLength)) + $MinLength
+                }
+            }
+
+            # If FirstChar is defined, randomize first char in password from that string.
+            if($PSBoundParameters.ContainsKey('FirstChar')){
+                $Password.Add(0,$FirstChar[((Get-Seed) % $FirstChar.Length)])
+            }
+            # Randomize one char from each group
+            Foreach($Group in $CharGroups) {
+                if($Password.Count -lt $Length) {
+                    $Index = Get-Seed
+                    While ($Password.ContainsKey($Index)){
+                        $Index = Get-Seed                        
+                    }
+                    $Password.Add($Index,$Group[((Get-Seed) % $Group.Count)])
+                }
+            }
+
+            # Fill out with chars from $AllChars
+            for($i=$Password.Count;$i -lt $Length;$i++) {
+                $Index = Get-Seed
+                While ($Password.ContainsKey($Index)){
+                    $Index = Get-Seed                        
+                }
+                $Password.Add($Index,$AllChars[((Get-Seed) % $AllChars.Count)])
+            }
+            $RetObj = $(-join ($Password.GetEnumerator() | Sort-Object -Property Name | Select-Object -ExpandProperty Value))
+            Write-Output -InputObject $RetObj
+        }
+        Write-CompletedMessage @CompletedParams -Status $RetObj
+    }
 }
 Export-ModuleMember -Function * -Verbose:$False -Debug:$False
