@@ -518,7 +518,7 @@ Function Get-DSCNodeName
     $MatchRegex = 'Node[\s]+([^{\s]+)[\s]*' -as [regex]
     $FileContent = (Get-Content $FilePath) -as [string]
     $Match = $MatchRegex.Matches($FileContent)
-    $ReturnObj = $Match | ForEach-Object { $_.Groups[1].Value.Replace('''','') }
+    $ReturnObj = $Match | ForEach-Object { ($_.Groups[1].Value.Replace('''','')).Replace('"','') }
     
     Write-CompletedMessage @CompletedParams -Status ($ReturnObj | ConvertTo-Json)
     Return $ReturnObj
