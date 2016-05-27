@@ -574,9 +574,9 @@ function Write-CompletedMessage
         $Status = $Null,
 
         [Parameter(Mandatory=$False)]
-        [ValidateSet('Debug', 'Error', 'Verbose', 'Warning')]
+        [ValidateSet('Debug', 'Error', 'Verbose', 'Warning', 'Automation')]
         [String]
-        $Stream = 'Verbose',
+        $Stream = 'Automation',
 
         [Parameter(Mandatory=$False)]
         [switch]
@@ -630,9 +630,9 @@ function Write-StartingMessage
         $String = '',
 
         [Parameter(Mandatory=$False)]
-        [ValidateSet('Debug', 'Error', 'Verbose', 'Warning')]
+        [ValidateSet('Debug', 'Error', 'Verbose', 'Warning', 'Automation')]
         [String]
-        $Stream = 'Verbose'
+        $Stream = 'Automation'
     )
     
     $ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop
@@ -847,4 +847,230 @@ Function New-RandomString
         Write-CompletedMessage @CompletedParams -Status $RetObj
     }
 }
-Export-ModuleMember -Function * -Verbose:$False -Debug:$False
+
+function Write-Automation
+{
+    Param(
+        [Parameter(Mandatory=$False)]
+        [String]
+        $Message = ''
+    )
+    
+    $ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop
+
+    $Source = 'JobLog'
+    $LogName = 'AzureAutomationLog'
+
+    If ($Script:WriteVerbose -eq $null)
+    {
+        $Script:WriteVerbose = $False
+    }
+        
+    Try
+    {
+        #Get the Hybrid Worker configuration (only if it's not previously retrieved)
+        If ($Script:HybridWorkerConfig -eq $null)
+        {
+            $Script:HybridWorkerConfig = GetHybridWorkerConfiguration
+        }
+    }
+    Catch
+    {
+        $Script:WriteVerbose = $True
+        $Exception = $_
+        $ExceptionInfo = Get-ExceptionInfo -Exception $Exception
+        Switch($ExceptionInfo.Type)
+        {
+            'NotAHybridRunbookWorker'
+            {
+                $Script:HybridWorkerConfig = @{
+                    HybridWorkerGroupName = [string]::Empty
+                    AutomationAccountId = [string]::Empty
+                    MachineId = [string]::Empty
+                    ComputerName = [string]::Empty
+                    MMAInstallRoot = [string]::Empty
+                    PSVersion = [string]::Empty
+                    HybridWorkerVersion = [string]::Empty
+                    SystemProxy = [string]::Empty
+                    MMAVersion = [string]::Empty
+                    MMAProxyUrl = [string]::Empty
+                    MMAProxyUserName = [string]::Empty
+                    MMAOMSWorkspaceId = [string]::Empty
+                }
+            }
+            Default
+            {
+                Throw
+            }
+        }
+    }
+
+    Try
+    {
+        #Get the runbook runtime info (only if it's not previously retrieved)
+        If ($Script:RunbookRuntimeInfo -eq $null)
+        {
+            $Script:RunbookRuntimeInfo = GetHybridWorkerJobRuntimeInfo
+        }
+    }
+    Catch
+    {
+        $Script:WriteVerbose = $True
+        $Exception = $_
+        $ExceptionInfo = Get-ExceptionInfo -Exception $Exception
+        Switch($ExceptionInfo.Type)
+        {
+            'NotExecutedAtHybridRunbookWorkerRuntime'
+            {
+                $Script:RunbookRuntimeInfo = @{
+                    JobId = [string]::Empty
+                    SandboxId = [string]::Empty
+                    ProcessId = [string]::Empty
+                    AutomationAssetEndPoint = [string]::Empty
+                    PSModulePath = [string]::Empty
+                    CurrentUser = [string]::Empty
+                    LogActivityTrace = [string]::Empty
+                    CurrentWorkingDirectory = [string]::Empty
+                    RunbookType = [string]::Empty
+                    RunbookName = [string]::Empty
+                    AccountName = [string]::Empty
+                    ResourceGroupName = [string]::Empty
+                    SubscriptionId = [string]::Empty
+                    TimeTakenToStartRunninginSeconds = [string]::Empty
+                }
+            }
+            Default
+            {
+                Throw
+            }
+        }
+    }
+
+    #make sure the event source exists
+    if ([System.Diagnostics.EventLog]::SourceExists($source) -eq $false)
+    {
+        [System.Diagnostics.EventLog]::CreateEventSource($source, $LogName)
+    }
+
+    Write-EventLog -LogName $LogName -Source $Source -EntryType Information -EventId 1 -Message (@{
+        'Message' = $Message
+        'RunbookRuntimeInfo' = $Script:RunbookRuntimeInfo
+        'HybridWorkerConfig' = $Script:HybridWorkerConfig
+    } | ConvertTo-Json)
+
+    if($WriteVerbose) { Write-Verbose -Message $Message }
+}
+
+Function GetHybridWorkerConfiguration
+{
+    Param(
+    )
+    
+    $HybridRunbookWorkerKeyPath = 'HKLM:\SOFTWARE\Microsoft\HybridRunbookWorker'
+    
+    #Read Hybrid Worker reg key
+    if(-not (Test-Path -Path $HybridRunbookWorkerKeyPath))
+    {
+        Throw-Exception -Type 'NotAHybridRunbookWorker' -Message 'Current Machine is not a Hybrid Runbook Worker'
+    }
+
+    $HybridWorkerRegKeyValues = Get-ItemProperty -Path $HybridRunbookWorkerKeyPath
+
+    #Get Hybrid worker version
+    $SandboxAssembly = [AppDomain]::CurrentDomain.GetAssemblies() | Where-object {$_.ManifestModule.Name -eq 'Orchestrator.Sandbox.exe'}
+    If ($SandboxAssembly)
+    {
+        $HybridWorkerVersion = split-path (split-path (split-path $SandboxAssembly.location)) -leaf
+    }
+
+    #Get System Proxy
+    $SystemProxyBytes = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\Connections" -Name WinHttpSettings).WinHttPSettings
+    $SystemProxyLength = $SystemProxyBytes[12]
+    if ($SystemProxyLength -gt 0)
+    {
+        $SystemProxy = -join ($SystemProxyBytes[(12+3+1)..(12+3+1+$SystemProxyLength-1)] | ForEach-Object {([char]$_)})
+    } else {
+        $SystemProxy = $null
+    }
+
+    #Get MMA configuration
+    $MMAConfig = New-Object -ComObject 'AgentConfigManager.MgmtSvcCfg'
+    $MMAVersion = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Microsoft Operations Manager\3.0\Setup").AgentVersion
+    $HybridWorkerConfig = @{
+        HybridWorkerGroupName = $HybridWorkerRegKeyValues.RunbookWorkerGroup
+        AutomationAccountId = $HybridWorkerRegKeyValues.AccountId
+        MachineId = $HybridWorkerRegKeyValues.MachineId
+        ComputerName = $env:COMPUTERNAME
+        MMAInstallRoot = $env:MOMROOT
+        PSVersion = $host.Version.ToString()
+        HybridWorkerVersion = $HybridWorkerVersion
+        SystemProxy = $SystemProxy
+        MMAVersion = $MMAVersion
+        MMAProxyUrl = $MMAConfig.ProxyUrl
+        MMAProxyUserName = $MMAConfig.ProxyUsername
+        MMAOMSWorkspaceId = $MMAConfig.AzureOperationalInsightsWorkspaceId
+    }
+    Return $HybridWorkerConfig
+}
+
+Function GetHybridWorkerJobRuntimeInfo
+{
+    #Make sure this function is executed within a runbook
+    If ($PSPrivateMetadata -eq $null -and $env:AUTOMATION_ASSET_SANDBOX_ID -eq $null)
+    {
+        Throw-Exception -Type 'NotExecutedAtHybridRunbookWorkerRuntime' `
+                        -Message 'GetHybridWorkerJobRuntimeInfo function must be executed within an Azure Automation runbook executed on a Hybrid Worker.'
+    }
+
+    #Get job details from Windows event log
+    $SandboxId = $env:AUTOMATION_ASSET_SANDBOX_ID
+    $5532EventFilter = @"
+<QueryList>
+    <Query Id='0' Path='Microsoft-SMA/Operational'>
+        <Select Path='Microsoft-SMA/Operational'>*[System[(EventID=5532)]] and *[System[(Level=4)]] and *[EventData[Data[@Name='sandboxId']='{$SandboxId}']]</Select>
+    </Query>
+</QueryList>
+"@
+    $3732EventFilter = @"
+<QueryList>
+    <Query Id='0' Path='Microsoft-SMA/Operational'>
+        <Select Path='Microsoft-SMA/Operational'>*[System[(EventID=3732)]] and *[System[(Level=4)]] and *[EventData[Data[@Name='sandboxId']='{$SandboxId}']]</Select>
+    </Query>
+</QueryList>
+"@
+    #$LogEntry = Get-WinEvent -FilterHashtable $FilterHastable
+    $3732LogEntry = Get-WinEvent -FilterXml $3732EventFilter
+    $5532LogEntry = Get-WinEvent -FilterXml $5532EventFilter
+    $3732LogEntryXML = [XML]$3732LogEntry.ToXml()
+    $5532LogEntryXML = [XML]$5532LogEntry.ToXml()
+    
+    #Convert to hashtable
+    $JobEventDetails = @{}
+    Foreach ($item in $5532LogEntryXML.Event.EventData.Data)
+    {
+        $JobEventDetails.Add($Item.Name, $Item.'#text'.Trim("{ }"))
+    }
+
+    #Get account name, resource group name and subscription Id
+    $RunbookType = ($3732LogEntryXML.Event.EventData.Data | Where-Object {$_.name -ieq 'runbookType'}).'#text'.Trim("{ }")
+    $JobEventDetails.Add('RunbookType', $RunbookType)
+
+    $JobInfo = @{
+        JobId = $JobEventDetails.JobId;
+        SandboxId = $SandboxId
+        ProcessId = $PID
+        AutomationAssetEndPoint = $env:AUTOMATION_ASSET_ENDPOINT
+        PSModulePath = $Env:PSModulePath
+        CurrentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+        LogActivityTrace = $PSPrivateMetadata.LogActivityTrace
+        CurrentWorkingDirectory = $PWD.ToString()
+        RunbookType = $JobEventDetails.runbookType
+        RunbookName = $JobEventDetails.runbookName
+        AccountName = $JobEventDetails.accountName
+        ResourceGroupName = $JobEventDetails.resourceGroupName
+        SubscriptionId = $JobEventDetails.subscriptionId
+        TimeTakenToStartRunninginSeconds = $JobEventDetails.timeTakenToStartRunningInSeconds
+    }
+    return $JobInfo
+}
+Export-ModuleMember -Function *-* -Verbose:$False -Debug:$False
